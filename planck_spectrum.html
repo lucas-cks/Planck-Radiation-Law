@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planck Radiation Spectrum</title>
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Latex rendering-->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        tags: 'none'
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --panel: #fffcf6;
+      --ink: #1b1712;
+      --muted: #6a6358;
+      --line: #d8d0c2;
+      --accent: #8a2f16;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Palatino, "Palatino Linotype", "Iowan Old Style", Georgia, serif;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 18px 28px; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 4px; font-size: 1.45rem; font-weight: 600; }
+
+    .eq { color: var(--ink); font-size: 1.05rem; line-height: 1.35; }
+    .eq mjx-container[display="true"] {
+      text-align: left !important;
+      margin: 0.35em 0 0.25em 0 !important;
+    }
+    .equnit {
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 0.76rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    /*constants panel*/
+    .constants {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 10px 14px 11px;
+      min-width: 290px;
+      max-width: 420px;
+      flex: 0 0 auto;
+    }
+    .constants h2 {
+      margin: 0 0 7px;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    .constants ul { list-style: none; margin: 0; padding: 0; font-size: 0.9rem; line-height: 1.55; }
+    .constants li { margin: 0; }
+    .constants li mjx-container { font-size: 100% !important; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1.1fr 1.4fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+    }
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    .fields { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: end; }
+    .field { min-width: 96px; flex: 1; }
+    label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    input[type="number"], input[type="text"], select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 0.92rem;
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--ink);
+    }
+    .temps { display: flex; flex-wrap: wrap; gap: 6px; }
+    .temp-line {
+      display: grid;
+      grid-template-columns: 18px 88px 28px 28px;
+      gap: 4px;
+      align-items: center;
+    }
+    .temp-line input[type="color"] {
+      width: 18px; height: 28px; padding: 0; border: none; background: none; cursor: pointer;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      height: 28px;
+      min-width: 28px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover { background: #f4e6de; }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      padding: 0 10px;
+      font-size: 0.82rem;
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    #plot { height: min(72vh, 720px); background: var(--panel); border: 1px solid var(--line); }
+
+    /* ---- derivation boxes ---- */
+    .derivation {
+      margin-top: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 14px 18px 20px;
+    }
+    .derivation > h2 {
+      margin: 0 0 12px;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    .derivation-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .derivation-box {
+      background: #fffcf6;
+      border: 1px solid var(--line);
+      padding: 12px 16px 16px;
+      min-width: 0;
+    }
+    .derivation-box + .derivation-box { margin-top: 14px; }
+    .derivation-box h3 {
+      margin: 0 0 10px;
+      padding-bottom: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-bottom: 1px solid var(--line);
+    }
+    .derivation-box h4 {
+      margin: 14px 0 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    .derivation-box p {
+      margin: 0.5em 0;
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+    .derivation-box mjx-container { max-width: 100%; }
+    .derivation-box mjx-container[display="true"] {
+      text-align: left !important;
+      margin: 0.5em 0 !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+  
+    .derivation-top + .derivation-box { margin-top: 0; }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 6px 0 0;
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    @media (max-width: 900px) {
+      .controls { grid-template-columns: 1fr; }
+      header { flex-direction: column; }
+      .constants { max-width: 100%; width: 100%; }
+      .derivation-top { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Planck's Radiation Law</h1>
+        <div class="eq">
+          $$F(\lambda,T)=\frac{2\pi h c^{2}}{\lambda^{5}\left[\exp\!\left(\dfrac{hc}{\lambda k T}\right)-1\right]}$$
+          <div class="equnit">
+            [ W m<sup>−2</sup> μm<sup>−1</sup> ] &nbsp;·&nbsp; default T = 5500 K (solar photosphere)
+          </div>
+        </div>
+      </div>
+
+      <aside class="constants">
+        <h2>Constants</h2>
+        <ul>
+          <li>Planck constant: $h = 6.62607015\times10^{-34}\ \mathrm{J\,s}$</li>
+          <li>Speed of light in vacuum: $c = 2.99792458\times10^{8}\ \mathrm{m\,s^{-1}}$</li>
+          <li>Boltzmann constant: $k_B = 1.380649\times10^{-23}\ \mathrm{J\,K^{-1}}$</li>
+          <li>Wien displacement constant: $b = 2.897771955\times10^{-3}\ \mathrm{m\,K}$</li>
+        </ul>
+      </aside>
+    </header>
+
+    <div class="controls">
+      <section class="panel">
+        <h2>Wavelength window</h2>
+        <div class="fields">
+          <div class="field">
+            <label for="xmin">Lower limit</label>
+            <input id="xmin" type="number" step="any" value="0" />
+          </div>
+          <div class="field">
+            <label for="xmax">Upper limit</label>
+            <input id="xmax" type="number" step="any" value="1000" />
+          </div>
+          <div class="field">
+            <label for="xunit">Unit</label>
+            <select id="xunit">
+              <option value="pm">pm — picometre</option>
+              <option value="Å">Å — ångström</option>
+              <option value="nm" selected>nm — nanometre</option>
+              <option value="µm">µm — micrometre</option>
+              <option value="mm">mm — millimetre</option>
+              <option value="cm">cm — centimetre</option>
+              <option value="m">m — metre</option>
+              <option value="km">km — kilometre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="lambdaProbe">Marker λ (unit above)</label>
+            <input id="lambdaProbe" type="number" min="0" step="any" value="500" />
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Temperatures (K)</h2>
+        <div class="fields">
+          <div id="temps" class="temps"></div>
+          <button id="addTemp" class="primary" type="button">+ add line</button>
+        </div>
+        <p class="hint" id="readout"></p>
+      </section>
+    </div>
+
+    <div id="plot"></div>
+
+
+    <!--  derivations
+          Row 1 : Planck (TL)  |  Wien's Displacement Law (TR)
+          Row 2 : Density of States
+    -->
+
+    <section class="derivation">
+      <h2>Derivations</h2>
+
+      <div class="derivation-top">
+
+        <!-- Planck-->
+        <article class="derivation-box">
+          <h3>Planck's Radiation Law</h3>
+
+          <p>
+            To find the total spectral energy density $u(\nu, T)\,d\nu$, we multiply the density
+            of states $g(\nu)\,d\nu$ by the average energy of a quantum harmonic oscillator
+            $\langle E \rangle$.
+          </p>
+
+          <h4>Average Energy via Planck's Hypothesis</h4>
+          <p>
+            Planck assumed that an oscillator can only exchange energy in discrete bundles:
+            $E_n = nh\nu$. Using the Boltzmann distribution, the average energy is:
+          </p>
+          $$\langle E \rangle =
+            \frac{\displaystyle\sum_{n=0}^{\infty} (nh\nu)\, e^{-nh\nu/k_B T}}
+                 {\displaystyle\sum_{n=0}^{\infty} e^{-nh\nu/k_B T}}$$
+
+          <p>Let $x = h\nu/(k_B T)$. The denominator is a standard geometric series:</p>
+          $$Z = \sum_{n=0}^{\infty} e^{-nx} = \frac{1}{1-e^{-x}}$$
+
+          <p>The numerator can be rewritten as a negative derivative of the denominator:</p>
+          $$\sum_{n=0}^{\infty} n\, e^{-nx}
+            = -\frac{dZ}{dx}
+            = -\frac{d}{dx}\!\left(\frac{1}{1-e^{-x}}\right)
+            = \frac{e^{-x}}{(1-e^{-x})^2}$$
+
+          <p>Now, compute $\langle E \rangle$:</p>
+          $$\langle E \rangle
+            = h\nu \cdot \frac{\;\dfrac{e^{-x}}{(1-e^{-x})^2}\;}{\;\dfrac{1}{1-e^{-x}}\;}
+            = \frac{h\nu\, e^{-x}}{1-e^{-x}}
+            = \frac{h\nu}{e^{\,x} - 1}$$
+
+          $$\langle E \rangle = \frac{h\nu}{\,e^{\,h\nu/k_B T} - 1\,}$$
+
+          <h4>Combining the Terms</h4>
+          $$u(\nu, T)\,d\nu = g(\nu)\,d\nu \times \langle E \rangle$$
+          $$u(\nu, T)\,d\nu
+            = \frac{8\pi \nu^2}{c^3}
+              \left(\frac{h\nu}{\,e^{\,h\nu/k_B T} - 1\,}\right) d\nu$$
+
+          <p>This yields <strong>Planck's Law</strong>:</p>
+          $$u(\nu, T)\,d\nu
+            = \frac{8\pi h \nu^3}{c^3}\,
+              \frac{1}{\,e^{\,h\nu/k_B T} - 1\,}\, d\nu$$
+        </article>
+
+        <!-- Wien -->
+        <article class="derivation-box">
+          <h3>Wien's Displacement Law</h3>
+
+          <p>
+            To derive Wien's displacement law, we determine the wavelength
+            $\lambda_{\text{max}}$ at which the spectral energy density of black-body radiation
+            reaches its maximum value. This requires converting Planck's law from its frequency
+            representation to its wavelength representation, followed by optimization using
+            calculus.
+          </p>
+
+          <h4>Converting Planck's Law to Wavelength Form</h4>
+          <p>
+            We express the spectral energy density in a differential band of wavelength. Energy
+            conservation across the differential intervals requires that:
+          </p>
+          $$|u(\lambda)\,d\lambda| = |u(\nu)\,d\nu|$$
+          <p>Given the wave relationship $\nu = c/\lambda$, taking the derivative yields:</p>
+          $$d\nu = -\frac{c}{\lambda^2}\,d\lambda$$
+          <p>Planck's law in terms of frequency $\nu$ is:</p>
+          $$u(\nu)\,d\nu = \frac{8\pi h \nu^3}{c^3}\,
+                           \frac{1}{\,e^{\,h\nu/k_B T} - 1\,}\,d\nu$$
+          <p>Substituting $\nu$ and ignoring the negative sign yields:</p>
+          $$u(\lambda)\,d\lambda
+            = \frac{8\pi h\,(c/\lambda)^3}{c^3}\,
+              \frac{1}{\,e^{\,hc/\lambda k_B T} - 1\,}
+              \left(\frac{c}{\lambda^2}\,d\lambda\right)$$
+          <p>
+            Simplifying the constants and powers of $\lambda$ provides the wavelength form of
+            Planck's law:
+          </p>
+          $$u(\lambda) = \frac{8\pi hc}{\lambda^5}\,
+                         \frac{1}{\,e^{\,hc/\lambda k_B T} - 1\,}$$
+
+          <h4>Maximizing the Spectral Density</h4>
+          <p>
+            To find the peak wavelength, we differentiate $u(\lambda)$ with respect to
+            $\lambda$ and set the expression to zero:
+          </p>
+          $$\frac{du}{d\lambda} = 0$$
+          <p>To simplify the calculation, we define a dimensionless variable $x$:</p>
+          $$x = \frac{hc}{\lambda k_B T}
+            \quad\Longrightarrow\quad
+            \lambda = \frac{hc}{x k_B T}$$
+          <p>
+            Substituting $\lambda$ back into the distribution function reveals its functional
+            dependence on $x$:
+          </p>
+          $$u(\lambda) \propto \left(\frac{x k_B T}{hc}\right)^5
+                         \frac{1}{e^x - 1}
+                       \propto \frac{x^5}{e^x - 1}$$
+          <p>
+            Maximizing $u(\lambda)$ with respect to $\lambda$ translates to maximizing this
+            expression with respect to $x$ (taking care of the inverse relationship):
+          </p>
+          $$\frac{d}{dx}\!\left(\frac{x^5}{e^x - 1}\right) = 0$$
+          <p>Applying the quotient rule:</p>
+          $$\frac{5x^4(e^x - 1) - x^5 e^x}{(e^x - 1)^2} = 0$$
+          <p>
+            Since $x \neq 0$ at the peak, we can multiply by $(e^x - 1)^2$ and divide by
+            $x^4$, which yields:
+          </p>
+          $$5(e^x - 1) - x e^x = 0$$
+          $$5e^x - 5 - x e^x = 0$$
+          <p>Rearranging terms leaves a transcendental equation:</p>
+          $$5 - x = 5e^{-x}$$
+
+          <h4>Solving for Wien's Displacement Constant</h4>
+          <p>
+            This transcendental equation cannot be solved analytically. Numerical evaluation
+            (e.g., via Newton's method) provides the non-zero root:
+          </p>
+          $$x \approx 4.965114$$
+          <p>
+            Substituting our definition of $x$ back into the solution at the maximum wavelength
+            $\lambda_{\text{max}}$:
+          </p>
+          $$\frac{hc}{\lambda_{\text{max}}\, k_B T} = 4.965114$$
+          <p>Isolating the product of wavelength and temperature yields:</p>
+          $$\lambda_{\text{max}} T = \frac{hc}{4.965114\, k_B}$$
+          <p>
+            Plugging in the fundamental physical constants
+            ($h \approx 6.626\times10^{-34}\ \text{J}\cdot\text{s}$,
+             $c \approx 2.998\times10^{8}\ \text{m/s}$,
+             $k_B \approx 1.381\times10^{-23}\ \text{J/K}$):
+          </p>
+          $$\lambda_{\text{max}} T = b$$
+          <p>where $b$ is Wien's displacement constant:</p>
+          $$b \approx 2.898 \times 10^{-3}\ \text{m}\cdot\text{K}$$
+          <p>This confirms Wien's displacement law:</p>
+          $$\lambda_{\text{max}} T = \text{constant}$$
+        </article>
+
+      </div>
+
+      <!-- DOS -->
+      <article class="derivation-box">
+        <h3>Derivation of the Density of States</h3>
+
+        <p>
+          We consider electromagnetic standing waves (modes) trapped inside a 3D cubical cavity
+          of side length $L$ and volume $V = L^3$ with perfectly reflecting walls.
+        </p>
+
+        <h4>Boundary Conditions</h4>
+        <p>
+          For a wave to form a standing wave inside the cavity, its components must satisfy the
+          boundary conditions:
+        </p>
+        $$k_x = \frac{\pi n_x}{L}, \quad
+          k_y = \frac{\pi n_y}{L}, \quad
+          k_z = \frac{\pi n_z}{L}$$
+        <p>
+          where $(n_x, n_y, n_z)$ are positive integers ($n_i = 1, 2, 3, \dots$). The magnitude
+          of the wave vector $\vec{k}$ is given by:
+        </p>
+        $$k^2 = k_x^2 + k_y^2 + k_z^2
+               = \frac{\pi^2}{L^2}\left(n_x^2 + n_y^2 + n_z^2\right)
+               = \frac{\pi^2}{L^2}\, n^2$$
+        <p>
+          where $n^2 = n_x^2 + n_y^2 + n_z^2$ represents the radius of a sphere in the positive
+          octant of $n$-space.
+        </p>
+
+        <h4>Counting Modes in $n$-Space</h4>
+        <p>
+          Since $n_x, n_y, n_z$ must be positive, the allowed combinations lie in
+          <strong>one-eighth</strong> ($1/8$) of a sphere of radius $n$. The number of states
+          $N(n)$ with a radius less than or equal to $n$ is:
+        </p>
+        $$N(n) = \frac{1}{8}\left(\frac{4}{3}\pi n^3\right) = \frac{\pi n^3}{6}$$
+
+        <h4>Changing Variables to Frequency ($\nu$)</h4>
+        <p>The relationship between wave-vector magnitude $k$ and frequency $\nu$ is:</p>
+        $$k = \frac{2\pi}{\lambda} = \frac{2\pi\nu}{c}$$
+        <p>Equating the two expressions for $k$:</p>
+        $$\frac{\pi n}{L} = \frac{2\pi\nu}{c}
+          \quad\Longrightarrow\quad
+          n = \frac{2L\nu}{c}$$
+        <p>
+          Substitute $n$ back into the equation for $N(n)$ to find the number of states as a
+          function of frequency, $N(\nu)$:
+        </p>
+        $$N(\nu) = \frac{\pi}{6}\left(\frac{2L\nu}{c}\right)^{3}
+                 = \frac{4\pi L^3 \nu^3}{3c^3}$$
+
+        <h4>Accounting for Polarization and Finding the Density</h4>
+        <p>
+          Light has <strong>two independent, orthogonal polarization states</strong> for each
+          spatial mode. Therefore, we must multiply the number of states by 2:
+        </p>
+        $$N_{\text{total}}(\nu) = 2 \times \frac{4\pi L^3 \nu^3}{3c^3}
+                                = \frac{8\pi L^3 \nu^3}{3c^3}$$
+        <p>
+          To find the number of modes within a specific frequency interval between $\nu$ and
+          $\nu + d\nu$, we take the derivative with respect to $\nu$:
+        </p>
+        $$dN = \frac{d}{d\nu}\!\left(\frac{8\pi L^3 \nu^3}{3c^3}\right) d\nu
+              = \frac{8\pi L^3 \nu^2}{c^3}\, d\nu$$
+        <p>
+          The <strong>density of states per unit volume</strong> $g(\nu)\,d\nu$ is obtained by
+          dividing by the volume $V = L^3$:
+        </p>
+        $$g(\nu)\,d\nu = \frac{dN}{V} = \frac{8\pi \nu^2}{c^3}\, d\nu$$
+      </article>
+    </section>
+
+  </div>
+
+  <script>
+
+
+
+    /*  Constants                                                          */
+
+    const H = 6.62607015e-34;
+    const C = 299792458;
+    const K = 1.380649e-23;
+    const CONST = 2 * Math.PI * H * C * C;
+    const A = H * C / K;
+    const WIEN = 2.897771955e6;               // nm·K
+
+    const PALETTE = ["#8a2f16", "#1f4e79", "#2e6b3a", "#6b3fa0", "#b45b1e", "#0f6c74", "#333"];
+
+    const BANDS = [
+      { name: "Gamma",        lo: 1e-16,  hi: 1e-11,  fill: "rgba(92, 32, 120, 0.18)",  bar: "#5c2078" },
+      { name: "X-ray",        lo: 1e-11,  hi: 1e-8,   fill: "rgba(70, 90, 170, 0.16)",  bar: "#465aaa" },
+      { name: "Ultra-violet", lo: 1e-8,   hi: 380e-9, fill: "rgba(120, 70, 190, 0.15)", bar: "#7846be" },
+      { name: "Visible",      lo: 380e-9, hi: 750e-9, fill: "rgba(255,255,255,0)",      bar: null },
+      { name: "Infra-red",    lo: 750e-9, hi: 1e-3,   fill: "rgba(176, 64, 48, 0.12)",  bar: "#b04030" },
+      { name: "Microwave",    lo: 1e-3,   hi: 1,      fill: "rgba(168, 112, 40, 0.12)", bar: "#a87028" },
+      { name: "Radio",        lo: 1,      hi: 1e6,    fill: "rgba(48, 112, 72, 0.12)",  bar: "#307048" }
+    ];
+
+    const UNITS = [
+      { id: "pm", m: 1e-12 },
+      { id: "Å",  m: 1e-10 },
+      { id: "nm", m: 1e-9  },
+      { id: "µm", m: 1e-6  },
+      { id: "mm", m: 1e-3  },
+      { id: "cm", m: 1e-2  },
+      { id: "m",  m: 1     },
+      { id: "km", m: 1e3   }
+    ];
+
+    let temps  = [{ id: 1, T: 5500, color: PALETTE[0] }];
+    let nextId = 2;
+    let prevUnit = "nm";
+
+    const el = id => document.getElementById(id);
+
+    function planckPerUm(lambdaM, T) {
+      if (!(lambdaM > 0) || !(T > 0)) return 0;
+      const x = A / (lambdaM * T);
+      if (x > 700) return 0;
+      const expo = Math.exp(x);
+      if (!isFinite(expo) || expo <= 1) return 0;
+      return CONST / (Math.pow(lambdaM, 5) * (expo - 1)) * 1e-6;
+    }
+
+    function unitFactor() {
+      const u = UNITS.find(u => u.id === el("xunit").value);
+      return u ? u.m : 1e-9;
+    }
+
+    function fmt(v) {
+      if (!isFinite(v)) return "—";
+      const av = Math.abs(v);
+      if (av === 0) return "0";
+      if (av < 1e-3 || av >= 1e5) return v.toExponential(2);
+      return String(Number(v.toPrecision(4)));
+    }
+
+    function buildX(a, b, uf, list) {
+      const set = new Set();
+      const N = 1200;
+      for (let i = 0; i < N; i++) set.add(a + (b - a) * i / (N - 1));
+
+      list.forEach(item => {
+        if (!(item.T > 0)) return;
+        const peak = (WIEN / item.T) * 1e-9 / uf;
+        if (!(peak > 0)) return;
+        const span = Math.max((b - a) * 0.08, peak * 0.35);
+        for (let i = 0; i < 400; i++) {
+          const v = peak + span * (i / 399 - 0.5) * 2;
+          if (v >= a && v <= b) set.add(v);
+        }
+      });
+
+      return Array.from(set).sort((p, q) => p - q);
+    }
+
+    function bandShapes(a, b, uf) {
+      const shapes = [];
+
+      BANDS.forEach(bd => {
+        const x0 = Math.max(bd.lo / uf, a);
+        const x1 = Math.min(bd.hi / uf, b);
+        if (!(x1 > x0)) return;
+        shapes.push({
+          type: "rect", xref: "x", yref: "paper",
+          x0, x1, y0: 0, y1: 1,
+          fillcolor: bd.fill, line: { width: 0 }, layer: "below"
+        });
+        if (bd.bar) {
+          shapes.push({
+            type: "rect", xref: "x", yref: "paper",
+            x0, x1, y0: 0, y1: 0.03,
+            fillcolor: bd.bar, line: { width: 0 }, layer: "below"
+          });
+        }
+      });
+
+      const v0 = Math.max(380e-9 / uf, a);
+      const v1 = Math.min(750e-9 / uf, b);
+      if (v1 > v0) {
+        const n = 48;
+        for (let i = 0; i < n; i++) {
+          const x0 = v0 + (v1 - v0) * i / n;
+          const x1 = v0 + (v1 - v0) * (i + 1) / n;
+          const hue = 270 - 270 * (i / (n - 1));
+          shapes.push({
+            type: "rect", xref: "x", yref: "paper",
+            x0, x1, y0: 0, y1: 1,
+            fillcolor: "hsla(" + hue + ",80%,55%,0.10)",
+            line: { width: 0 }, layer: "below"
+          });
+          shapes.push({
+            type: "rect", xref: "x", yref: "paper",
+            x0, x1, y0: 0, y1: 0.03,
+            fillcolor: "hsl(" + hue + ",85%,50%)",
+            line: { width: 0 }, layer: "below"
+          });
+        }
+      }
+      return shapes;
+    }
+
+    function bandAnnotations(a, b, uf) {
+      const out = [];
+      BANDS.forEach(bd => {
+        const x0 = Math.max(bd.lo / uf, a);
+        const x1 = Math.min(bd.hi / uf, b);
+        if (!(x1 > x0)) return;
+        if ((x1 - x0) < 0.045 * (b - a)) return;
+        out.push({
+          x: 0.5 * (x0 + x1), y: 1.03,
+          xref: "x", yref: "paper",
+          text: bd.name, showarrow: false,
+          font: { size: 11, color: "#534c42", family: "Segoe UI, Helvetica, sans-serif" }
+        });
+      });
+      return out;
+    }
+
+    function renderTempRows() {
+      const box = el("temps");
+      box.innerHTML = "";
+      temps.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "temp-line";
+        row.innerHTML =
+          '<input type="color" value="' + item.color + '" data-id="' + item.id + '" class="t-color" />' +
+          '<input type="number" min="1" step="any" value="' + item.T + '" data-id="' + item.id + '" class="t-value" />' +
+          '<button type="button" class="t-add" title="Add line">+</button>' +
+          '<button type="button" data-id="' + item.id + '" class="t-del" title="Remove line"' +
+          (temps.length === 1 ? " disabled" : "") + ">−</button>";
+        box.appendChild(row);
+      });
+
+      box.querySelectorAll(".t-value").forEach(input => {
+        input.addEventListener("input", () => {
+          const t = temps.find(t => t.id === Number(input.dataset.id));
+          if (t) { t.T = Number(input.value); draw(); }
+        });
+      });
+      box.querySelectorAll(".t-color").forEach(input => {
+        input.addEventListener("input", () => {
+          const t = temps.find(t => t.id === Number(input.dataset.id));
+          if (t) { t.color = input.value; draw(); }
+        });
+      });
+      box.querySelectorAll(".t-add").forEach(b => b.addEventListener("click", addTemp));
+      box.querySelectorAll(".t-del").forEach(b =>
+        b.addEventListener("click", () => removeTemp(Number(b.dataset.id))));
+    }
+
+    function addTemp() {
+      const last = temps[temps.length - 1];
+      temps.push({
+        id: nextId++,
+        T: last ? Math.round(last.T * 1.4) : 5500,
+        color: PALETTE[temps.length % PALETTE.length]
+      });
+      renderTempRows();
+      draw();
+    }
+
+    function removeTemp(id) {
+      if (temps.length === 1) return;
+      temps = temps.filter(t => t.id !== id);
+      renderTempRows();
+      draw();
+    }
+
+    function draw() {
+      const unit = el("xunit").value;
+      const uf = unitFactor();
+
+      let a = Number(el("xmin").value);
+      let b = Number(el("xmax").value);
+      if (!isFinite(a) || a < 0) a = 0;
+      if (!isFinite(b) || b <= a) b = a + 1;
+
+      const probe = Number(el("lambdaProbe").value);
+      const xs = buildX(a, b, uf, temps);
+
+      const traces = [];
+      const notes = [];
+      let ymax = 0;
+
+      temps.forEach(item => {
+        if (!(item.T > 0)) return;
+
+        const y = xs.map(v => planckPerUm(v * uf, item.T));
+        for (let i = 0; i < y.length; i++) if (y[i] > ymax) ymax = y[i];
+
+        traces.push({
+          x: xs, y: y,
+          type: "scatter", mode: "lines",
+          name: item.T.toLocaleString() + " K",
+          line: { color: item.color, width: 2.3 },
+          hovertemplate:
+            "λ = %{x:.5g} " + unit + "<br>" +
+            "F = %{y:.4g} W m⁻² μm⁻¹<extra>" + item.T + " K</extra>"
+        });
+
+        const peakDisp = (WIEN / item.T) * 1e-9 / uf;
+        notes.push(
+          item.T + " K → λ<sub>max</sub> = " + fmt(peakDisp) + " " + unit +
+          (probe > 0 ? ", F(" + probe + " " + unit + ") = " +
+            planckPerUm(probe * uf, item.T).toExponential(3) : "")
+        );
+      });
+
+      if (!(ymax > 0)) ymax = 1;
+
+      if (probe > 0 && probe >= a && probe <= b) {
+        traces.push({
+          x: [probe, probe], y: [0, ymax * 1.08],
+          type: "scatter", mode: "lines",
+          name: "λ = " + probe + " " + unit,
+          line: { color: "#222", width: 1, dash: "dot" },
+          hoverinfo: "skip"
+        });
+      }
+
+      const layout = {
+        margin: { l: 82, r: 28, t: 56, b: 96 },
+        paper_bgcolor: "#fffcf6",
+        plot_bgcolor: "#fffcf6",
+        font: { family: "Palatino, Georgia, serif", color: "#1b1712" },
+        title: { text: "Blackbody Radiation Curves" },
+        dragmode: "pan",
+        xaxis: {
+          type: "linear",
+          range: [a, b],
+          title: { text: "Wavelength λ  (" + unit + ")" },
+          gridcolor: "#e4ddd1",
+          zeroline: false,
+          showline: true,
+          linecolor: "#1b1712",
+          ticks: "outside",
+          exponentformat: "e"
+        },
+        yaxis: {
+          title: { text: "Spectral exitance F(λ, T)  (W m⁻² μm⁻¹)" },
+          gridcolor: "#e4ddd1",
+          zeroline: false,
+          showline: true,
+          linecolor: "#1b1712",
+          ticks: "outside",
+          rangemode: "tozero",
+          range: [0, ymax * 1.14],
+          exponentformat: "e"
+        },
+        legend: { orientation: "h", y: -0.22, x: 0 },
+        hovermode: "x",
+        shapes: bandShapes(a, b, uf),
+        annotations: bandAnnotations(a, b, uf)
+      };
+
+      const config = {
+        responsive: true,
+        displaylogo: false,
+        scrollZoom: true,
+        modeBarButtonsToRemove: [
+          "zoom2d", "select2d", "lasso2d", "autoScale2d",
+          "hoverClosestCartesian", "hoverCompareCartesian", "toggleSpikelines"
+        ]
+      };
+
+      Plotly.react("plot", traces, layout, config);
+
+      el("readout").innerHTML = notes.join(" &nbsp;·&nbsp; ");
+    }
+
+    el("addTemp").addEventListener("click", addTemp);
+    el("xmin").addEventListener("input", draw);
+    el("xmax").addEventListener("input", draw);
+    el("lambdaProbe").addEventListener("input", draw);
+
+    el("xunit").addEventListener("change", () => {
+      const oldF = UNITS.find(u => u.id === prevUnit).m;
+      const newF = UNITS.find(u => u.id === el("xunit").value).m;
+      const k = oldF / newF;
+
+      ["xmin", "xmax", "lambdaProbe"].forEach(id => {
+        const v = Number(el(id).value);
+        if (isFinite(v)) el(id).value = Number((v * k).toPrecision(6));
+      });
+
+      prevUnit = el("xunit").value;
+      draw();
+    });
+
+    renderTempRows();
+    draw();
+  </script>
+</body>
+</html>
